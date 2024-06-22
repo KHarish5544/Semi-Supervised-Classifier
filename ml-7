@@ -1,0 +1,45 @@
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.semi_supervised import LabelPropagation
+from sklearn.metrics import accuracy_score, precision_score, recall_score
+from sklearn.model_selection import train_test_split
+import numpy as np
+# Sample data (replace with your actual data)
+labeled_data = [("This is a document about sports", "Sports"), 
+                ("This is a news article", "News"),
+                ("Another document about sports", "Sports"),
+                ("A text sample about politics", "Politics"),
+                ("A document discussing music", "Music")]
+unlabeled_data = ["This document discusses machine learning", 
+                  "Another document about music", 
+                  "A short text sample"]
+# Combine data for feature extraction
+all_data = [text for text, _ in labeled_data] + unlabeled_data
+# Extract labels from labeled data
+texts, labels = zip(*labeled_data)
+# Feature Extraction (TF-IDF)
+vectorizer = TfidfVectorizer(max_features=500)
+features = vectorizer.fit_transform(all_data)
+# Convert features to dense numpy array
+features_dense = features.toarray()
+# Get all unique labels
+all_labels = sorted(set(labels))
+# Create label distributions matrix
+label_distributions = np.zeros((len(texts), len(all_labels)))
+for i, label in enumerate(labels):
+    label_distributions[i, all_labels.index(label)] = 1
+# Split labeled data into training set and test set
+X_train, X_test, y_train, y_test = train_test_split(features_dense[:len(texts)], labels, test_size=0.2, random_state=42)
+# Convert y_train to indices of true classes
+y_train_indices = np.array([all_labels.index(label) for label in y_train])
+# Train the semi-supervised classifier
+semi_clf = LabelPropagation()
+semi_clf.fit(X_train, y_train_indices)  # Ensure y_train_indices is passed as is
+# Predict labels for test set
+predictions = semi_clf.predict(X_test)
+# Calculate evaluation metrics
+accuracy = accuracy_score(np.array([all_labels.index(label) for label in y_test]), predictions)
+precision = precision_score(np.array([all_labels.index(label) for label in y_test]), predictions, average='weighted', labels=np.unique(predictions))
+recall = recall_score(np.array([all_labels.index(label) for label in y_test]), predictions, average='weighted', labels=np.unique(predictions))
+print(f"Accuracy: {accuracy:.4f}")
+print(f"Precision: {precision:.4f}")
+print(f"Recall: {recall:.4f}")
